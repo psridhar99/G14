@@ -2,6 +2,7 @@
 data.py — CIFAR-100 data loaders and augmentation strategies.
 """
 
+import sys
 import torch
 from torch.utils.data import DataLoader, random_split
 from torchvision import datasets, transforms
@@ -91,12 +92,17 @@ def get_tta_transforms():
 def build_loaders(
     aug_strategy: str = "standard",
     batch_size: int = BATCH_SIZE,
-    num_workers: int = 4,
+    num_workers: int = None,
 ) -> Tuple[DataLoader, DataLoader]:
     """
     Build train and val DataLoaders from CIFAR-100 with an 80/20 split.
     Validation set always uses the deterministic val transform.
+    num_workers defaults to 0 on Windows (avoids multiprocessing spawn issues)
+    and 4 on Linux/Mac.
     """
+    if num_workers is None:
+        num_workers = 0 if sys.platform == "win32" else 4
+    pin = (num_workers > 0)  # pin_memory requires workers > 0 to be useful
     train_ds_full = datasets.CIFAR100(
         root=DATA_ROOT, train=True, download=True,
         transform=get_transform(aug_strategy),
@@ -121,11 +127,11 @@ def build_loaders(
 
     train_loader = DataLoader(
         train_data, batch_size=batch_size, shuffle=True,
-        num_workers=num_workers, pin_memory=True, persistent_workers=True,
+        num_workers=num_workers, pin_memory=pin, persistent_workers=(num_workers > 0),
     )
     val_loader = DataLoader(
         val_data, batch_size=256, shuffle=False,
-        num_workers=num_workers, pin_memory=True, persistent_workers=True,
+        num_workers=num_workers, pin_memory=pin, persistent_workers=(num_workers > 0),
     )
     return train_loader, val_loader
 

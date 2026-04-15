@@ -59,9 +59,9 @@ def build_arch_variant(variant: str) -> nn.Module:
 class ResNet18WithDropout(nn.Module):
     """ResNet18 with a dropout layer inserted before the final FC."""
 
-    def __init__(self, dropout_p: float = 0.5):
+    def __init__(self, dropout_p: float = 0.5, pretrained: bool = True):
         super().__init__()
-        base = build_resnet18(pretrained=True)
+        base = build_resnet18(pretrained=pretrained)
         self.backbone = nn.Sequential(
             base.conv1, base.bn1, base.relu, base.maxpool,
             base.layer1, base.layer2, base.layer3, base.layer4,
@@ -77,11 +77,11 @@ class ResNet18WithDropout(nn.Module):
         return self.fc(x)
 
 
-def build_reg_model(dropout: float = 0.0) -> nn.Module:
+def build_reg_model(dropout: float = 0.0, pretrained: bool = True) -> nn.Module:
     """Return the appropriate model for a regularization config."""
     if dropout > 0.0:
-        return ResNet18WithDropout(dropout_p=dropout)
-    return build_resnet18(pretrained=True)
+        return ResNet18WithDropout(dropout_p=dropout, pretrained=pretrained)
+    return build_resnet18(pretrained=pretrained)
 
 
 # ── HD-CNN ────────────────────────────────────────────────────────────────────

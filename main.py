@@ -1,3 +1,6 @@
+import os
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+
 import argparse
 import sys
 from scripts import run_baseline, run_ablation, run_hdcnn

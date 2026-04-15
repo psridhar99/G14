@@ -38,16 +38,22 @@ def train_one_epoch(
     for x, y in loader:
         x, y = x.to(DEVICE), y.to(DEVICE)
         optimizer.zero_grad()
-        with torch.amp.autocast(DEVICE):
+        # device_type= (not positional) avoids a deprecation warning on newer torch;
+        # also correctly handles 'cuda' vs 'cpu' strings on Windows.
+        with torch.amp.autocast(device_type=DEVICE):
             logits = model(x)
             loss   = criterion(logits, y)
         scaler.scale(loss).backward()
         scaler.step(optimizer)
         scaler.update()
+        # Cast to float32 before argmax: half-precision argmax outside autocast
+        # context triggers CUDA illegal memory access on some driver versions.
+        with torch.no_grad():
+            preds = logits.detach().float().argmax(1)
         bs = x.size(0)
         tot       += bs
         tot_loss  += loss.item() * bs
-        tot_correct += (logits.argmax(1) == y).sum().item()
+        tot_correct += (preds == y).sum().item()
 
     return tot_loss / tot, tot_correct / tot
 
@@ -99,7 +105,7 @@ def run_experiment(
     optimizer = optim.SGD(model.parameters(), lr=LR,
                           momentum=MOMENTUM, weight_decay=weight_decay)
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-    scaler    = torch.amp.GradScaler(DEVICE)
+    scaler    = torch.cuda.amp.GradScaler(enabled=(DEVICE == "cuda"))
 
     history      = {"train_loss": [], "val_loss": [], "train_accs": [], "val_accs": []}
     best_val_acc = 0.0
